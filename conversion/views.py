@@ -11,6 +11,7 @@ from django.conf import settings
 from django.views.decorators.http import require_http_methods
 
 from conversion.core.core import generate_eft, section_fp, manual_section
+from conversion.core.pdf_loader import pdf_to_image_bytes
 
 CWD = os.getcwd()
 TMP_DIR = settings.TMP_DIR
@@ -43,17 +44,37 @@ def step1(request):
         file = request.FILES.get("formFileLg")
         print(file)
         time.sleep(1)
-        fname = os.path.join(TMP_DIR, 'input.png')
-        with open(fname, 'wb+') as dest:
-            for chunk in file.chunks():
-                dest.write(chunk)
+        warning = None
+        original_name = (file.name or "").lower()
+        if original_name.endswith(".pdf"):
+            try:
+                img_bytes, ext, warning = pdf_to_image_bytes(file.read())
+            except ValueError as e:
+                print(f"PDF load failed: {e}")
+                return JsonResponse({"values": False, "warning": str(e)}, safe=False)
+            intermediate = os.path.join(TMP_DIR, f"input.{ext}")
+            with open(intermediate, "wb") as dest:
+                dest.write(img_bytes)
+            fname = os.path.join(TMP_DIR, "input.png")
+            if ext != "png":
+                img = cv2.imread(intermediate)
+                cv2.imwrite(fname, img)
+            else:
+                # Already a PNG; the intermediate IS input.png
+                if intermediate != fname:
+                    os.replace(intermediate, fname)
+        else:
+            fname = os.path.join(TMP_DIR, "input.png")
+            with open(fname, "wb+") as dest:
+                for chunk in file.chunks():
+                    dest.write(chunk)
         try:
             out = section_fp(fname=fname)
         except Exception as e:
             print(e)
             out = False
-        return JsonResponse({'values': out}, safe=False)
-    return JsonResponse({'message': 'Invalid request method'}, status=405)
+        return JsonResponse({"values": out, "warning": warning}, safe=False)
+    return JsonResponse({"message": "Invalid request method"}, status=405)
 
 def step2(request):
     global FILES
