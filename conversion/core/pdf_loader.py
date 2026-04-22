@@ -10,6 +10,8 @@ falls through to PyMuPDF's renderer, which produces a PNG in the correct
 viewer orientation.
 """
 
+from __future__ import annotations
+
 import fitz
 
 # Image formats OpenCV's standard build can decode. PyMuPDF can surface
