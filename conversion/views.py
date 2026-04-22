@@ -42,6 +42,12 @@ def step1(request):
     global RESULTS
     if request.method == "POST":
         file = request.FILES.get("formFileLg")
+        if file is None:
+            return JsonResponse(
+                {"values": False, "warning": "No file received."},
+                status=400,
+                safe=False,
+            )
         print(file)
         time.sleep(1)
         warning = None
@@ -58,6 +64,11 @@ def step1(request):
             fname = os.path.join(TMP_DIR, "input.png")
             if ext != "png":
                 img = cv2.imread(intermediate)
+                if img is None:
+                    return JsonResponse(
+                        {"values": False, "warning": f"Unsupported image format in PDF: {ext}"},
+                        safe=False,
+                    )
                 cv2.imwrite(fname, img)
             else:
                 # Already a PNG; the intermediate IS input.png
