@@ -123,6 +123,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 TMP_DIR = os.environ.get("TMP_DIR")
 
+# Paths to NBIS binaries
+NFSEG_BIN = os.path.join(BASE_DIR, 'nbis', 'nfseg', 'bin', 'nfseg')
+NFIQ_BIN = os.path.join(BASE_DIR, 'nbis', 'nfiq', 'bin', 'nfiq')
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR,"static"),
     TMP_DIR,

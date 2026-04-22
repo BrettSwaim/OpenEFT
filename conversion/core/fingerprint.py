@@ -3,8 +3,12 @@ from subprocess import check_output
 import cv2
 import math
 import numpy as np
+from django.conf import settings
 from conversion.core.eft_helper import US_CHAR
 from conversion.core.fd258_ocr import OCR_LOCATIONS
+
+NFSEG_BIN = settings.NFSEG_BIN
+NFIQ_BIN = settings.NFIQ_BIN
 
 class Finger:
     def __init__(self, str):
@@ -49,7 +53,7 @@ class Finger:
         # estimated correctends (254)
         # Vendor quality id
         # numeric product code 
-        x = "nfiq {}".format(self.name)
+        x = "{} {}".format(NFIQ_BIN, self.name)
         self.score = check_output(x, shell=True, text=True).strip()
 
     def getScoreString(self):
@@ -127,7 +131,7 @@ class Fingerprint:
         x=""
         if 'nt' in os.name:
             x += "wsl "
-        x += "nfseg {} 1 1 1 0 {}".format(self.fgp, self.converted.replace('jp2','png'))
+        x += "{} {} 1 1 1 0 {}".format(NFSEG_BIN, self.fgp, self.converted.replace('jp2','png'))
         a = check_output(x, shell=True, text=True).split('\n')
         for each in a:
             tmp = each.split('FILE')
