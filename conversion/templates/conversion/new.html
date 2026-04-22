@@ -182,15 +182,31 @@
     };
 
     function showFingerprints(json) {
+        // Clear any previous warning banner
+        let oldAlert = document.getElementById("pdf-warning");
+        if (oldAlert) oldAlert.remove();
+
         if (json.values==false){
             step[current_step].classList.remove('d-block');
             step[current_step].classList.add('d-none');
             error.removeAttribute("hidden");
+            if (json.warning) {
+                error.innerText = json.warning;
+            }
             clearCanvas();
         } else {
             error.setAttribute("hidden","true");
             step[current_step].classList.remove('d-none');
             step[current_step].classList.add('d-block');
+            if (json.warning) {
+                let banner = document.createElement("div");
+                banner.id = "pdf-warning";
+                banner.className = "alert alert-warning alert-dismissible fade show mt-2";
+                banner.setAttribute("role", "alert");
+                banner.innerHTML = json.warning
+                    + ' <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+                step[current_step].prepend(banner);
+            }
             document.getElementById("thumb").onload = setTimeout(checkImages,1000);
             document.getElementById("rslap").src = "static/" + json.values[0];
             document.getElementById("lslap").src = "static/" + json.values[1];
