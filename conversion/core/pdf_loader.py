@@ -12,7 +12,7 @@ import fitz
 
 def pdf_to_image_bytes(pdf_bytes: bytes) -> tuple[bytes, str, str | None]:
     """
-    Convert a PDF's first page to image bytes.
+    Convert page 1 of a PDF (the first page) to image bytes.
 
     Returns (image_bytes, extension, warning_or_None). Extension is a bare
     format name without the dot, e.g. "jpeg" or "png".
@@ -25,20 +25,23 @@ def pdf_to_image_bytes(pdf_bytes: bytes) -> tuple[bytes, str, str | None]:
     except Exception as exc:
         raise ValueError(f"Could not open PDF: {exc}") from exc
 
-    if len(doc) == 0:
-        raise ValueError("PDF has no pages.")
+    with doc:
+        if len(doc) == 0:
+            raise ValueError("PDF has no pages.")
 
-    warning = None
-    if len(doc) > 1:
-        warning = f"Your PDF has {len(doc)} pages — using page 1."
+        warning = None
+        if len(doc) > 1:
+            warning = f"Your PDF has {len(doc)} pages — using page 1."
 
-    page = doc[0]
-    images = page.get_images(full=True)
-    if len(images) == 1:
-        xref = images[0][0]
-        info = doc.extract_image(xref)
-        return info["image"], info["ext"], warning
+        page = doc[0]
+        images = page.get_images(full=True)
+        # Only extract natively when the page wraps exactly one image. Composites
+        # (multiple embedded images) are rendered as a whole to preserve layout.
+        if len(images) == 1:
+            xref = images[0][0]
+            info = doc.extract_image(xref)
+            return info["image"], info["ext"], warning
 
-    # Fallback: render the page at 600 DPI as PNG.
-    pix = page.get_pixmap(dpi=600)
-    return pix.tobytes("png"), "png", warning
+        # Fallback: render the page at 600 DPI as PNG.
+        pix = page.get_pixmap(dpi=600)
+        return pix.tobytes("png"), "png", warning
