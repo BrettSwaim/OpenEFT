@@ -181,6 +181,21 @@
         });
     };
 
+    function buildWarningBanner(text) {
+        const banner = document.createElement("div");
+        banner.id = "pdf-warning";
+        banner.className = "alert alert-warning alert-dismissible fade show mt-2";
+        banner.setAttribute("role", "alert");
+        const msg = document.createTextNode(text + " ");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-close";
+        btn.setAttribute("data-bs-dismiss", "alert");
+        btn.setAttribute("aria-label", "Close");
+        banner.append(msg, btn);
+        return banner;
+    }
+
     function showFingerprints(json) {
         // Clear any previous warning banner
         let oldAlert = document.getElementById("pdf-warning");
@@ -191,7 +206,9 @@
             step[current_step].classList.add('d-none');
             error.removeAttribute("hidden");
             if (json.warning) {
-                error.innerText = json.warning;
+                // Insert as a sibling before #error, not inside — #error holds
+                // the manual-resection <canvas> and must not be overwritten.
+                error.parentNode.insertBefore(buildWarningBanner(json.warning), error);
             }
             clearCanvas();
         } else {
@@ -199,13 +216,7 @@
             step[current_step].classList.remove('d-none');
             step[current_step].classList.add('d-block');
             if (json.warning) {
-                let banner = document.createElement("div");
-                banner.id = "pdf-warning";
-                banner.className = "alert alert-warning alert-dismissible fade show mt-2";
-                banner.setAttribute("role", "alert");
-                banner.innerHTML = json.warning
-                    + ' <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
-                step[current_step].prepend(banner);
+                step[current_step].prepend(buildWarningBanner(json.warning));
             }
             document.getElementById("thumb").onload = setTimeout(checkImages,1000);
             document.getElementById("rslap").src = "static/" + json.values[0];
