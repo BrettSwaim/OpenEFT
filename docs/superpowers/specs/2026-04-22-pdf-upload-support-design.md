@@ -137,7 +137,7 @@ No new error states. No new UI.
 
 Fixtures in `conversion/tests/fixtures/`:
 
-1. **`ricoh_duplex.pdf`** — redacted copy of the real 2-page scan (1 card + 1 blank back).
+1. **`ricoh_duplex.pdf`** — the real 2-page Ricoh MP C4504ex scan (1 card + 1 blank back), committed as-is per owner decision.
 2. **`single_page_scan.pdf`** — a 1-page image-wrapped PDF (can be derived from fixture 1 page 0).
 3. **`vector.pdf`** — generated in-test via `fitz` with drawn shapes, no embedded images.
 4. **`corrupt.pdf`** — a few bytes that aren't a PDF.
