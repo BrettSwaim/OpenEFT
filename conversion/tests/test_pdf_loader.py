@@ -7,10 +7,13 @@ because OpenEFT/settings.py performs blocking network I/O at import time
 that import path entirely.
 """
 
+import io
+import struct
 import unittest
 from pathlib import Path
 
 import fitz
+from PIL import Image
 
 from conversion.core.pdf_loader import pdf_to_image_bytes
 
@@ -18,40 +21,64 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class TestPdfToImageBytes(unittest.TestCase):
-    def test_ricoh_multipage_extracts_native_jpeg_from_page_one(self):
-        """The real 2-page Ricoh scan: warn about pages, return native JPEG bytes."""
-        pdf_bytes = (FIXTURES / "ricoh_duplex.pdf").read_bytes()
+    def test_rotated_ricoh_pdf_renders_png_right_side_up(self):
+        """Real Ricoh fingerprint scan has page.rotation=90. We must render
+        (not native-extract) so the output is in viewer orientation."""
+        pdf_bytes = (FIXTURES / "ricoh_fingerprints.pdf").read_bytes()
 
         img_bytes, ext, warning = pdf_to_image_bytes(pdf_bytes)
 
-        self.assertEqual(ext, "jpeg")
+        self.assertEqual(ext, "png")
+        self.assertIsNone(warning)  # single-page fixture
+        # PyMuPDF renders at the page's visual (post-rotation) dimensions.
+        # Letter page (612x792 pts, portrait) rendered at 600 DPI → 5100x6600.
+        # The content inside appears right-side up because rotation is applied.
+        self.assertEqual(img_bytes[:8], b"\x89PNG\r\n\x1a\n")
+        width, height = struct.unpack(">II", img_bytes[16:24])
+        self.assertAlmostEqual(width, 5100, delta=5)
+        self.assertAlmostEqual(height, 6600, delta=5)
+
+    def test_multi_page_ricoh_triggers_warning(self):
+        """Two-page duplex scan: warn, still use page 1."""
+        # Build a 2-page PDF by duplicating page 0 of the real fixture.
+        src = fitz.open(str(FIXTURES / "ricoh_fingerprints.pdf"))
+        multi = fitz.open()
+        multi.insert_pdf(src, from_page=0, to_page=0)
+        multi.insert_pdf(src, from_page=0, to_page=0)
+        pdf_bytes = multi.tobytes()
+
+        img_bytes, ext, warning = pdf_to_image_bytes(pdf_bytes)
+
+        self.assertEqual(ext, "png")
         self.assertIsNotNone(warning)
         self.assertIn("2 pages", warning)
+        self.assertGreater(len(img_bytes), 0)
 
-        # The returned bytes should be exactly the embedded JPEG from page 0
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        xref = doc[0].get_images()[0][0]
-        native = doc.extract_image(xref)["image"]
-        self.assertEqual(img_bytes, native)
+    def test_unrotated_single_image_pdf_returns_native_jpeg(self):
+        """Simple, unrotated, single-image PDF: preserve native JPEG bytes."""
+        # Build an unrotated letter page, insert a known JPEG.
+        img = Image.new("RGB", (200, 150), color=(200, 100, 50))
+        jpeg_buf = io.BytesIO()
+        img.save(jpeg_buf, format="JPEG", quality=90)
+        jpeg_bytes = jpeg_buf.getvalue()
 
-    def test_single_page_pdf_has_no_warning(self):
-        """A single-page PDF should not produce a warning message."""
-        # Build a 1-page PDF in-memory by cloning page 0 of the Ricoh fixture.
-        src = fitz.open(str(FIXTURES / "ricoh_duplex.pdf"))
-        single = fitz.open()
-        single.insert_pdf(src, from_page=0, to_page=0)
-        pdf_bytes = single.tobytes()
+        doc = fitz.open()
+        page = doc.new_page(width=612, height=792)
+        page.insert_image(fitz.Rect(50, 50, 250, 200), stream=jpeg_bytes)
+        pdf_bytes = doc.tobytes()
 
         img_bytes, ext, warning = pdf_to_image_bytes(pdf_bytes)
 
         self.assertEqual(ext, "jpeg")
         self.assertIsNone(warning)
-        self.assertGreater(len(img_bytes), 0)
+        # Reopen the PDF and verify we got the exact embedded bytes back.
+        verify = fitz.open(stream=pdf_bytes, filetype="pdf")
+        xref = verify[0].get_images()[0][0]
+        native = verify.extract_image(xref)["image"]
+        self.assertEqual(img_bytes, native)
 
     def test_vector_pdf_falls_back_to_rendered_png(self):
         """A PDF with no embedded raster renders the page at 600 DPI as PNG."""
-        import struct
-
         doc = fitz.open()
         page = doc.new_page(width=612, height=792)  # US Letter @ 72 DPI
         page.draw_rect(fitz.Rect(50, 50, 562, 742), color=(0, 0, 0), width=2)

@@ -3,11 +3,19 @@ PDF → image bytes for OpenEFT step 1.
 
 Accepts a PDF as raw bytes and returns an image rendering of page 0 that
 the existing cv2-based pipeline can consume. When the page wraps a single
-embedded raster (the common MFP scanner case), the native image bytes are
-returned unchanged to preserve resolution.
+embedded raster with no rotation and a cv2-decodable format, the native
+image bytes are returned unchanged to preserve resolution. Anything else
+(rotated page, composite, exotic format like JPEG 2000 / JBIG2 / JPEG XR)
+falls through to PyMuPDF's renderer, which produces a PNG in the correct
+viewer orientation.
 """
 
 import fitz
+
+# Image formats OpenCV's standard build can decode. PyMuPDF can surface
+# others (jpx/JPEG 2000, jb2/JBIG2, jxr/JPEG XR) that opencv-python-headless
+# does not support; those take the render path instead.
+_CV2_SAFE_EXTS = frozenset({"jpeg", "jpg", "png"})
 
 
 def pdf_to_image_bytes(pdf_bytes: bytes) -> tuple[bytes, str, str | None]:
@@ -35,13 +43,16 @@ def pdf_to_image_bytes(pdf_bytes: bytes) -> tuple[bytes, str, str | None]:
 
         page = doc[0]
         images = page.get_images(full=True)
-        # Only extract natively when the page wraps exactly one image. Composites
-        # (multiple embedded images) are rendered as a whole to preserve layout.
-        if len(images) == 1:
+        # Native extract only when the page is a simple unrotated wrapper
+        # around a single cv2-decodable image. Any rotation hint, composite,
+        # or exotic format falls through to get_pixmap, which honors
+        # page.rotation (producing the image right-side up) and always
+        # produces PNG bytes.
+        if len(images) == 1 and page.rotation == 0:
             xref = images[0][0]
             info = doc.extract_image(xref)
-            return info["image"], info["ext"], warning
+            if info["ext"] in _CV2_SAFE_EXTS:
+                return info["image"], info["ext"], warning
 
-        # Fallback: render the page at 600 DPI as PNG.
         pix = page.get_pixmap(dpi=600)
         return pix.tobytes("png"), "png", warning
