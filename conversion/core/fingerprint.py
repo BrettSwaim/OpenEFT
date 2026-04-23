@@ -1,4 +1,5 @@
 import os
+import subprocess
 from subprocess import check_output
 import cv2
 import math
@@ -148,7 +149,14 @@ class Fingerprint:
     def segment(self):
         png_path = _wsl_path(self.converted.replace('jp2', 'png'))
         x = "{}{} {} 1 1 1 0 {}".format(_wsl_prefix(), NFSEG_BIN, self.fgp, png_path)
-        a = check_output(x, shell=True, text=True).split('\n')
+        result = subprocess.run(x, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                "nfseg failed (exit {}).\n  cmd: {}\n  cwd: {}\n  stderr: {!r}\n  stdout: {!r}".format(
+                    result.returncode, x, os.getcwd(), result.stderr, result.stdout
+                )
+            )
+        a = result.stdout.split('\n')
         for each in a:
             tmp = each.split('FILE')
             if len(tmp) > 1 and len(tmp[1])>1:
