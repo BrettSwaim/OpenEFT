@@ -10,6 +10,24 @@ from conversion.core.fd258_ocr import OCR_LOCATIONS
 NFSEG_BIN = settings.NFSEG_BIN
 NFIQ_BIN = settings.NFIQ_BIN
 
+
+def _wsl_path(p):
+    """Translate a Windows path to its WSL /mnt/<drive>/... equivalent.
+    Pass-through on non-Windows so this helper is safe everywhere."""
+    if os.name != "nt":
+        return p
+    p = p.replace("\\", "/")
+    if len(p) >= 2 and p[1] == ":":
+        return "/mnt/{}{}".format(p[0].lower(), p[2:])
+    return p
+
+
+def _wsl_prefix():
+    """Return `"wsl "` on Windows so WSL-only NBIS binaries can run there,
+    `""` on Linux so they run natively."""
+    return "wsl " if "nt" in os.name else ""
+
+
 class Finger:
     def __init__(self, str):
         """
@@ -53,7 +71,7 @@ class Finger:
         # estimated correctends (254)
         # Vendor quality id
         # numeric product code 
-        x = "{} {}".format(NFIQ_BIN, self.name)
+        x = "{}{} {}".format(_wsl_prefix(), NFIQ_BIN, _wsl_path(self.name))
         self.score = check_output(x, shell=True, text=True).strip()
 
     def getScoreString(self):
@@ -128,10 +146,8 @@ class Fingerprint:
         self.save_image()
 
     def segment(self):
-        x=""
-        if 'nt' in os.name:
-            x += "wsl "
-        x += "{} {} 1 1 1 0 {}".format(NFSEG_BIN, self.fgp, self.converted.replace('jp2','png'))
+        png_path = _wsl_path(self.converted.replace('jp2', 'png'))
+        x = "{}{} {} 1 1 1 0 {}".format(_wsl_prefix(), NFSEG_BIN, self.fgp, png_path)
         a = check_output(x, shell=True, text=True).split('\n')
         for each in a:
             tmp = each.split('FILE')
@@ -214,13 +230,12 @@ class Fingerprint:
         i = os.path.join(self.tmpdir, self.name)
         o = i + '.' + encoding
         i = i + '.' + self.encoding
-        x = ""
+        x = _wsl_prefix()
         print("Encoding: {}".format(encoding))
-        if 'nt' in os.name:
-            x += "wsl "
         if encoding == 'jp2':
             self.cga = "JP2"  # COMPRESSION ALGORITHM
-            x += "opj_compress -i {} -o {} -r {} -n 2".format(i, o, ratio)
+            x += "opj_compress -i {} -o {} -r {} -n 2".format(
+                _wsl_path(i), _wsl_path(o), ratio)
         os.system(x)
         self.converted = o
         self.segment()  # Now segment the compressed file

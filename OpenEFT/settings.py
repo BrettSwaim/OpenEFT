@@ -123,9 +123,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 TMP_DIR = os.environ.get("TMP_DIR")
 
-# Paths to NBIS binaries
-NFSEG_BIN = os.path.join(BASE_DIR, 'nbis', 'nfseg', 'bin', 'nfseg')
-NFIQ_BIN = os.path.join(BASE_DIR, 'nbis', 'nfiq', 'bin', 'nfiq')
+# Paths to NBIS binaries.
+# These are Linux paths because the binaries live in WSL (they were built
+# inside the WSL Ubuntu OpenEFT clone via the NBIS submodule, not in the
+# Windows working directory). The Django server calls them through `wsl`
+# on Windows, so the paths are resolved by Linux, not Windows.
+NFSEG_BIN = os.environ.get("NFSEG_BIN", "/home/bswaim/OpenEFT/build/bin/nfseg")
+NFIQ_BIN = os.environ.get("NFIQ_BIN", "/home/bswaim/OpenEFT/build/bin/nfiq")
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR,"static"),
