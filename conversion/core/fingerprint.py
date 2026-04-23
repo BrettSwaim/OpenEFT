@@ -1,6 +1,5 @@
 import os
 import subprocess
-from subprocess import check_output
 import cv2
 import math
 import numpy as np
@@ -23,10 +22,20 @@ def _wsl_path(p):
     return p
 
 
-def _wsl_prefix():
-    """Return `"wsl "` on Windows so WSL-only NBIS binaries can run there,
-    `""` on Linux so they run natively."""
-    return "wsl " if "nt" in os.name else ""
+def _nbis_argv(binary, *args):
+    """Build an argv list for invoking an NBIS binary.
+
+    On Windows we prefix with "wsl" since the binaries live in WSL; on Linux
+    we invoke them directly. We return a list (not a string) so the caller
+    can pass it to subprocess with shell=False — this matters because
+    shell=True on Windows routes through cmd.exe, which honors its
+    AutoRun registry key and can corrupt exit codes if that key points at
+    an unquoted path containing spaces.
+    """
+    argv = ["wsl"] if os.name == "nt" else []
+    argv.append(binary)
+    argv.extend(str(a) for a in args)
+    return argv
 
 
 class Finger:
@@ -72,8 +81,8 @@ class Finger:
         # estimated correctends (254)
         # Vendor quality id
         # numeric product code 
-        x = "{}{} {}".format(_wsl_prefix(), NFIQ_BIN, _wsl_path(self.name))
-        self.score = check_output(x, shell=True, text=True).strip()
+        argv = _nbis_argv(NFIQ_BIN, _wsl_path(self.name))
+        self.score = subprocess.check_output(argv, text=True).strip()
 
     def getScoreString(self):
         if int(self.n) == 11:
@@ -148,12 +157,12 @@ class Fingerprint:
 
     def segment(self):
         png_path = _wsl_path(self.converted.replace('jp2', 'png'))
-        x = "{}{} {} 1 1 1 0 {}".format(_wsl_prefix(), NFSEG_BIN, self.fgp, png_path)
-        result = subprocess.run(x, shell=True, capture_output=True, text=True)
+        argv = _nbis_argv(NFSEG_BIN, self.fgp, 1, 1, 1, 0, png_path)
+        result = subprocess.run(argv, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(
-                "nfseg failed (exit {}).\n  cmd: {}\n  cwd: {}\n  stderr: {!r}\n  stdout: {!r}".format(
-                    result.returncode, x, os.getcwd(), result.stderr, result.stdout
+                "nfseg failed (exit {}).\n  argv: {}\n  cwd: {}\n  stderr: {!r}\n  stdout: {!r}".format(
+                    result.returncode, argv, os.getcwd(), result.stderr, result.stdout
                 )
             )
         a = result.stdout.split('\n')
@@ -238,12 +247,16 @@ class Fingerprint:
         i = os.path.join(self.tmpdir, self.name)
         o = i + '.' + encoding
         i = i + '.' + self.encoding
-        x = _wsl_prefix()
         print("Encoding: {}".format(encoding))
         if encoding == 'jp2':
             self.cga = "JP2"  # COMPRESSION ALGORITHM
-            x += "opj_compress -i {} -o {} -r {} -n 2".format(
-                _wsl_path(i), _wsl_path(o), ratio)
-        os.system(x)
+            argv = _nbis_argv(
+                "opj_compress",
+                "-i", _wsl_path(i),
+                "-o", _wsl_path(o),
+                "-r", ratio,
+                "-n", 2,
+            )
+            subprocess.run(argv, check=False)
         self.converted = o
         self.segment()  # Now segment the compressed file
