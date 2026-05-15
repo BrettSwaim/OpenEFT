@@ -9,6 +9,7 @@ from urllib.parse import quote
 from django.shortcuts import render, redirect
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
 from conversion.core.core import generate_eft, section_fp, manual_section
 
@@ -29,6 +30,7 @@ def process_fp():
     for each in RESULTS:
         each.convert()
 
+@csrf_exempt
 def resection(request):
     if request.method == "POST":
         data = request.POST.dict()
@@ -37,6 +39,7 @@ def resection(request):
         return JsonResponse(out)
     return JsonResponse({'message': 'Invalid request method'}, status=405)
 
+@csrf_exempt
 def step1(request):
     global RESULTS
     if request.method == "POST":
@@ -54,6 +57,7 @@ def step1(request):
         return JsonResponse(out)
     return JsonResponse({'message': 'Invalid request method'}, status=405)
 
+@csrf_exempt
 def step2(request):
     global FILES
     if request.method == "POST":
