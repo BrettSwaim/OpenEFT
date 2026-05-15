@@ -1,0 +1,12 @@
+# The Dockerfile clones NBIS into /root/OpenEFT/nbis at build time —
+# don't let the empty placeholder file or any local nbis checkout collide.
+nbis
+.git
+.github
+build_linux.sh
+build_windows.sh
+build_docker.sh.bak
+*.png
+test.png
+unusedBuilds/
+docs/
