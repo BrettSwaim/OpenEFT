@@ -78,8 +78,17 @@ def section_fp(fname):
     global RESULTS
     # Read image
     img = cv2.imread(fname)
-    # Align image
-    aligned = GetEFT(img)
+    # Try to auto-align the FD-258 card by detecting its outline. If detection
+    # fails (poor contrast, cropped scan, etc.), fall back to the raw image —
+    # an HTTP-API caller (eg. BrettSwaim/eforms) can then POST /new/resection
+    # with manual corner points to align, or rely on the Claude-vision verifier
+    # to detect and request offsets.
+    try:
+        aligned = GetEFT(img)
+    except Exception as e:
+        print(f"GetEFT auto-alignment failed ({e!r}); using unaligned image. "
+              "Caller should POST /new/resection with manual corner points.")
+        aligned = img
     return _section(aligned)
 
 REGION_COLORS = {
