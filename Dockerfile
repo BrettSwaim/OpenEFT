@@ -24,9 +24,11 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     bash
 
-# Clone the OpenEFT repository
-RUN git clone https://github.com/robbbbbbbbb/OpenEFT.git /root/OpenEFT && \
-    cd /root/OpenEFT && git pull
+# Copy the current OpenEFT checkout (Brett's fork — used by CI) instead of
+# cloning from upstream. The original Dockerfile cloned robbbbbbbbb/OpenEFT,
+# which silently discarded every fork modification.
+RUN mkdir -p /root/OpenEFT
+COPY . /root/OpenEFT/
 
 # Set working directory to the cloned repo
 WORKDIR /root/OpenEFT
