@@ -34,14 +34,13 @@ def resection(request):
         data = request.POST.dict()
         fname = os.path.join(TMP_DIR, 'input.png')
         out = manual_section(fname=fname, data=data)
-        return JsonResponse({'values': out}, safe=False)
+        return JsonResponse(out)
     return JsonResponse({'message': 'Invalid request method'}, status=405)
 
 def step1(request):
     global RESULTS
     if request.method == "POST":
         file = request.FILES.get("formFileLg")
-        print(file)
         time.sleep(1)
         fname = os.path.join(TMP_DIR, 'input.png')
         with open(fname, 'wb+') as dest:
@@ -51,8 +50,8 @@ def step1(request):
             out = section_fp(fname=fname)
         except Exception as e:
             print(e)
-            out = False
-        return JsonResponse({'values': out}, safe=False)
+            out = {"error": str(e)}
+        return JsonResponse(out)
     return JsonResponse({'message': 'Invalid request method'}, status=405)
 
 def step2(request):

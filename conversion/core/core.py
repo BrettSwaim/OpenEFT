@@ -1,6 +1,7 @@
 import os
 import cv2
 import uuid
+import base64
 import numpy as np
 from django.conf import settings
 from conversion.core.align import GetEFT, four_point_transform
@@ -81,18 +82,62 @@ def section_fp(fname):
     aligned = GetEFT(img)
     return _section(aligned)
 
+REGION_COLORS = {
+    "R_FOUR":    (255,   0,   0),  # blue (OpenCV is BGR)
+    "L_FOUR":    (  0,   0, 255),  # red
+    "2_THUMBS":  (  0, 255,   0),  # green
+}
+
+
+def render_overlay_b64(aligned_img, locations) -> str:
+    """Draw colored bounding boxes on `aligned_img` for each location and
+    return the result as a base64-encoded PNG string.
+    Each location's `.bbox` is a (x, y, w, h) tuple."""
+    overlay = aligned_img.copy()
+    if len(overlay.shape) == 2:
+        overlay = cv2.cvtColor(overlay, cv2.COLOR_GRAY2BGR)
+    for loc in locations:
+        x, y, w, h = loc.bbox
+        x2, y2 = x + w, y + h
+        color = REGION_COLORS.get(loc.id, (255, 255, 255))
+        cv2.rectangle(overlay, (x, y), (x2, y2), color, 4)
+        cv2.putText(overlay, loc.id, (x, max(20, y - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+    ok, buf = cv2.imencode(".png", overlay)
+    if not ok:
+        return ""
+    return base64.b64encode(buf.tobytes()).decode("ascii")
+
+
+def render_region_b64(region_path: str) -> str:
+    """Read a saved region PNG and return as base64."""
+    with open(region_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("ascii")
+
+
 def _section(img):
     t = os.path.join(os.getcwd(),'static')
     template = cv2.imread(os.path.join(t,'fd-258.png'))
     img = cv2.resize(img, (template.shape[0], template.shape[1]))
-    # Section fingerprints
-    out = []
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    region_files = []
     for loc in OCR_LOCATIONS:
-        out.append(loc.id + '.png')
+        region_files.append(loc.id + '.png')
         f = Fingerprint(loc, src_img=img, tmpdir=TMP_DIR)
         RESULTS.append(f)
-    return out
+        # Note: Fingerprint.__init__ already wrote the region PNG via save_image().
+        # We do NOT call f.convert() here — that's heavy (wsl opj_compress + nfseg)
+        # and generate_eft() calls it later anyway.
+    overlay_b64 = render_overlay_b64(img, OCR_LOCATIONS)
+    regions_b64 = {
+        loc.id: render_region_b64(os.path.join(TMP_DIR, loc.id + '.png'))
+        for loc in OCR_LOCATIONS
+    }
+    return {
+        "segments": region_files,
+        "overlay_b64": overlay_b64,
+        "regions_b64": regions_b64,
+    }
 
 def manual_section(fname, data):
     img = cv2.imread(fname)
