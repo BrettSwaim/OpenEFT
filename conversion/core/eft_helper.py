@@ -157,7 +157,8 @@ class Type2(Record):
         self.fname = input("First Name: ")
         self.mname = input("Middle Name: ")
         self.lname = input("Last Name: ")
-        self.name = "{}, {} {}".format(self.lname, self.fname, self.mname[0])
+        _mid = "NMN" if (not self.mname or self.mname.upper() == "NMN") else self.mname[0]
+        self.name = "{}, {} {}".format(self.lname, self.fname, _mid)
         self.aka = input("Aliases (comma separated): ")
         self.stateCurrent = input("Current State 2-Letter Code (e.g. AZ, NY): ")
         self.stateBorn = input("Start Born 2-Letter Code (e.g. AZ, NY): ")

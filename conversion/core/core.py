@@ -41,7 +41,10 @@ def generate_eft(data):
     t2.hair = data.get("hair")
     t2.rsn = data.get("rsn")
     t2.amp = data.get("missing")
-    t2.name = "{}, {} {}".format(t2.lname, t2.fname, t2.mname[0])
+    # ATF regs: a subject with no middle name is recorded as the literal "NMN".
+    # A real middle name is abbreviated to its initial in the 2.018 name field.
+    _mid = "NMN" if (not t2.mname or t2.mname.upper() == "NMN") else t2.mname[0]
+    t2.name = "{}, {} {}".format(t2.lname, t2.fname, _mid)
     # Attach
     t1.add_record(t2)
     # Generate tx number
