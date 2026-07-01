@@ -8,6 +8,7 @@ from subprocess import check_output
 x = tempfile.TemporaryDirectory()
 os.environ.setdefault('TMP_DIR', x.name)
 print(x)
+PORT = os.environ.get('OPENEFT_PORT', '8742')
 def main(a):
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OpenEFT.settings')
@@ -25,10 +26,10 @@ def browser():
     time.sleep(3) # Give some time for django to fully load.
     print("RUNNING BROWSER")
     if 'nt' in os.name:
-        if check_output("wsl ./browser/windows/chrome.exe --app=http://localhost:8080", shell=True) is not None:
+        if check_output(f"wsl ./browser/windows/chrome.exe --app=http://localhost:{PORT}", shell=True) is not None:
             pass
     elif 'posix' in os.name or 'linux' in os.name:
-        if check_output("./browser/linux/chrome.AppImage --app=http://localhost:8080/", shell=True) is not None:
+        if check_output(f"./browser/linux/chrome.AppImage --app=http://localhost:{PORT}/", shell=True) is not None:
             pass
     # Force exit if not already
     x.cleanup()
@@ -37,5 +38,5 @@ def browser():
 if __name__ == '__main__':
     br = threading.Thread(target=browser, args=())
     br.start()
-    main(["openeft.py", "runserver", "0.0.0.0:8080","--noreload"])
+    main(["openeft.py", "runserver", f"0.0.0.0:{PORT}","--noreload"])
     x.cleanup()

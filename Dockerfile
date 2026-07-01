@@ -1,8 +1,8 @@
 # Base image
 FROM ubuntu:20.04
 
-# Expose port 8080
-EXPOSE 8080
+# Expose port 8742
+EXPOSE 8742
 
 # Disable interactive prompts during package installation
 ARG DEBIAN_FRONTEND=noninteractive

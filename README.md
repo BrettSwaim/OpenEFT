@@ -30,7 +30,7 @@ Well, the original software appears to be abandoned (the dev's Reddit account wa
 
    (Press CTRL+C to exit the program at any time)
 
-5. Access the tool via http://localhost:8080
+5. Access the tool via http://localhost:8742
 
 6. Click "Start New EFT" and follow the instructions on each corresponding train stop.
 
@@ -76,10 +76,10 @@ docker build -t openeft-0.4.0 .
 ```
 Note that 0.4.0 is the version when this guide was published. You can name it `openeft` if you don't care about versioning.
 
-Run the Docker image and expose it to TCP/8080:
+Run the Docker image and expose it to TCP/8742:
 
 ```sh
-docker run -p 8080:8080 openeft-0.4.0
+docker run -p 8742:8742 openeft-0.4.0
 ```
 
 #### If Linux
@@ -96,9 +96,11 @@ docker run -p 8080:8080 openeft-0.4.0
 
 6. Access the app in a web browser:
 
-   http://localhost:8080
+   http://localhost:8742
 
-   **NOTE**: If you want to access this on other hosts on your network, <a href="https://archive.is/1GBWH" target="_blank">you can open TCP/8080 on Windows Firewall</a>. Since OpenEFT does not run as root, it cannot bind to a port below TCP/1024 (eg: no 80/443)
+   (The port defaults to 8742 and can be overridden with the `OPENEFT_PORT` environment variable.)
+
+   **NOTE**: If you want to access this on other hosts on your network, <a href="https://archive.is/1GBWH" target="_blank">you can open TCP/8742 on Windows Firewall</a>. Since OpenEFT does not run as root, it cannot bind to a port below TCP/1024 (eg: no 80/443)
    
    **NOTE**: If placing behind a reverse proxy, do _not_ expose this to the internet unless you want the world to have your EFTs and be able to read the contents (eg: your SSN)
 
