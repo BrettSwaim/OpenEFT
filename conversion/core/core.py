@@ -20,6 +20,10 @@ def format_date(datestring):
 def generate_eft(data):
     global RESULTS
     global THREAD
+    if not RESULTS:
+        # Refuse to emit an EFT with zero Type-14 fingerprint records — that
+        # file would look valid but carry no prints.
+        raise RuntimeError("no segmentation in session — run step1/resection first")
     t1 = Type1()
     t2 = Type2(0)
     # Pull data from form
@@ -128,6 +132,14 @@ def render_region_b64(region_path: str) -> str:
 
 
 def _section(img):
+    global RESULTS
+    # Each segmentation (step1 auto-align OR /new/resection) REPLACES the
+    # session's regions. Accumulating instead means generate_eft packages
+    # stale regions from prior sections — 6+ Type-14s (ATF's EBTS rejects >3,
+    # error 2002) or a crash in nfseg on a blank leftover crop. Clearing here
+    # also removes the need for callers to "flush" RESULTS with a throwaway
+    # step2 between step1 and resection.
+    RESULTS = []
     t = os.path.join(os.getcwd(),'static')
     template = cv2.imread(os.path.join(t,'fd-258.png'))
     img = cv2.resize(img, (template.shape[0], template.shape[1]))
